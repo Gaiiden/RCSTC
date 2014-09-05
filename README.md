@@ -39,6 +39,7 @@ You can cancel the program at any time by deleting the maneuver node.
 - **Remote Tech integration** - when kOS and RT2 play nice together again, the option to enforce signal delay will be available. Applications in this case would be changes to the maneuver node and cancellation of the maneuver node.
 - **Node Monitoring** - adjust to changes in the node (time, Δv amount) so that you don't have to delete and re-make the node, re-run the program for changes to take effect.
 - **Adaptable Thruster Properties** - once kOS can [access part information more readily](http://forum.kerbalspaceprogram.com/threads/68089-0-24-kOS-Scriptable-Autopilot-System-v0-13-1-2014-7-18?p=1366067&viewfull=1#post1366067), users will no longer need to manually set the 3 thruster properties
+- **Multiple ISP Thrusters** - allow for thrusters that don't all have the same ISP
  
 ##Credits
 

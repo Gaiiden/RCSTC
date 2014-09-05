@@ -42,7 +42,7 @@ You can cancel the program at any time by deleting the maneuver node.
  
 ##Credits
 
-Nivekk for creating the kOS mod
-erendrake for maintaining and updating the kOS mod
-Steven Mading for great support on the forums (also a kOS dev)
+Nivekk for creating the kOS mod /
+erendrake for maintaining and updating the kOS mod /
+Steven Mading for great support on the forums (also a kOS dev) /
 Lilleman for node existence checking routine

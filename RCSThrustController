@@ -1,0 +1,109 @@
+declare parameter thrust.
+
+// currently these are only hard-coded values. Change as needed
+set thrusterCount to 4. // # of thrusters capable of forward thrust
+set kN to 0.97.         // use RCS Build Aid to get accurate kN for your thrusters
+set isp to 270.         // available via right-click menu on thrusters
+
+// no touchy!
+set e to 2.7182.
+set thrustLength to 0.
+set bNodeExist to false.
+
+clearscreen.
+print "RCS Thrust Control Initializing...".
+
+// if a maneuver node is there, keep checking to ensure it's still there
+when bNodeExist then
+{
+  if nextnode:eta = tempNode:eta
+  {
+    set bNodeExist to false.
+  }.
+  preserve.
+}.
+
+// trigger to begin burn
+when nextnode:eta - (thrustLength/2) <= 0 then
+{
+  print "T". // we need this so the next command will be on a new line
+  print "Commencing thrust".
+  rcs on.
+  set ship:control:fore to thrust.
+  set thrustBeginTime to time:seconds.
+}.
+
+// trigger to monitor the burn
+when rcs then
+{
+  if time:seconds - thrustBeginTime >= thrustLength
+  {
+    print "Thrust Complete!".
+    rcs off.
+    remove nextnode.
+  }.
+  preserve.
+}.
+
+// ensure that a node exists for us to use
+// code courtesy of Lilleman (kOS thread post #1364)
+set iNodeETA to (time:seconds + 126144000).
+set tempNode to node(iNodeETA,0,0,0).
+add tempNode.
+if nextnode:eta < tempNode:eta
+{
+  // all is well, carry on
+  set bNodeExist to true.
+
+  print round(nextnode:deltav:mag,2) + "dV manuever node detected...".
+
+  // compute the time needed for the thrust
+  set thrustLength to (ship:mass * 9.81 * isp / (thrust*(thrusterCount*kN))) * (1 - (e^((nextnode:deltav:mag*-1)/(9.81 * isp)))).
+
+  print round(thrustLength,2) + "s of thrust required".
+
+  // wait for the triggers to carry out the maneuver
+  until bNodeExist = false
+  {
+    set timeRemaining to floor(nextnode:eta - (thrustLength/2)).
+    if timeRemaining >= 0
+    {
+			set days to 0.
+			set hours to 0.
+			set minutes to 0.
+
+			if timeRemaining >= 86400 {
+				set days to floor(timeRemaining / 86400).
+				set timeRemaining to timeRemaining - (days * 86400).
+			}.
+
+			if timeRemaining >= 3600 {
+				set hours to floor(timeRemaining / 3600).
+				set timeRemaining to timeRemaining - (hours * 3600).
+			}.
+
+			if timeRemaining >= 60 {
+				set minutes to floor(timeRemaining / 60).
+				set timeRemaining to timeRemaining - (minutes * 60).
+			}.
+
+			set seconds to timeRemaining.
+
+      print "                                             " at (0,3).
+      print "Time remaining until thrust: " + days + "d " + hours + "h " + minutes + "m " + seconds + "s" at (0,3).
+    }.
+
+    wait 0.001.
+  }.
+}
+else
+{
+  print "No manuever node detected".
+}.
+
+// clean up
+set ship:control:fore to 0.
+set ship:control:neutralize to true.
+rcs off.
+remove tempNode.
+print " ". // forces the program end message down a line

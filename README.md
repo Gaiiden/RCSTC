@@ -20,7 +20,7 @@ After defining the craft-specific variables you must create a maneuver node you 
 
 The single parameter passed to the program is the amount of thrust you want to apply for the maneuver. This value ranges from 0-1, so half thrust would be .5. It is recommended that for maneuvers with little Δv you lower your thrust to retain accuracy in the maneuver, as it is carried out based on time.
 
-Once the program runs, if it doesn't detect a maneuver node it will exit and tell you. If a node is detected, it will inform you of the amount of time needed to complete the maneuver and start counting down. This countdown marks the beginning of RCS thrust, not the time of the maneuver node itself. It is directly tied to the game time so any physics lag will not affect its accuracy.
+Once the program runs, if it doesn't detect a maneuver node it will exit and tell you. If a node is detected, it will first check to make sure your craft has the amount of Δv required to perform the maneuver. If you don't have enough Δv a flashing warning message will inform you, but the program will not cancel the maneuver. It will next inform you of the amount of time needed to complete the maneuver and start counting down. This countdown marks the beginning of RCS thrust, not the time of the maneuver node itself. It is directly tied to the game time so any physics lag will not affect its accuracy.
 
 This program will **not** orient your craft. To do this, you must manually orient it or, if you are dealing with signal delay or future planned lack of connection, use the Remote Tech flight computer. The image below demonsrates a queue of commands to allow the maneuver to properly execute.
 

@@ -9,6 +9,7 @@ set isp to 270.         // available via right-click menu on thrusters
 set e to 2.7182.
 set thrustLength to 0.
 set bNodeExist to false.
+set lineUpdate to 3.
 
 clearscreen.
 print "RCS Thrust Control Initializing...".
@@ -73,6 +74,7 @@ if nextnode:eta < tempNode:eta
       wait 0.5.
     }.
     print "WARNING!" at (0,2).
+    set lineUpdate to 4.
   }.
 
   // compute the time needed for the thrust
@@ -85,8 +87,8 @@ if nextnode:eta < tempNode:eta
   {
     if timeRemaining >= 0
     {
-      print "                                             " at (0,4).
-      print "Time remaining until thrust: " + timeRemaining:Clock at (0,4).
+      print "                                             " at (0,lineUpdate).
+      print "Time remaining until thrust: " + timeRemaining:Clock at (0,lineUpdate).
     }.
 
     wait 0.001.

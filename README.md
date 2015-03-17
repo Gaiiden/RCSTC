@@ -55,6 +55,7 @@ This will load the thrust controller at 76% throttle.
 - The future node created by the script is there to avoid a run-time error that needs to be patched within kOS
 - The future node initially has a radial out value to push it off the current orbit so that it can be selected by the user to place a node before it
 - Regardless of whether you are using an actual kOS part or are using Module Manager to insert kOS functionality into another part (like a probe core) it **must not be a root part** of the craft. This is a known kOS issue
+- Tweakable Everything will only let you set the thrust as low as 5 before going straight to 0 (which RCSTC will reset to 1). The mod author has been notified
  
 ##Credits
 

@@ -1,4 +1,6 @@
 declare parameter thrust.
+// don't allow a thrust setting of 0
+if thrust = 0 { set thrust to 1. }.
 
 // currently the only hard-coded value. Change as needed
 set kN to 0.97.         // use RCS Build Aid to get accurate kN for your individual thrusters

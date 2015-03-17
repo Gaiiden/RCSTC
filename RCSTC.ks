@@ -178,6 +178,9 @@ until bMainLoop = false
 				{
 					set bDirtyNode to true.
 					set thrust to part:getmodule("moduletweakablercs"):getfield("thrust limiter").
+
+				        // don't allow a thrust setting of 0
+          				if thrust = 0 { set thrust to 1. }.
 					break.
 				}.
 			}.

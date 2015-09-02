@@ -16,7 +16,7 @@ You can now run the program
 
 `run rcstc.`
 
-Once the program runs, it will first ensure that you are connected to Mission Control. If you are not using Remote Tech or are not playing with signal delay, you can edit the program script and set `bConnected` to true where it is defined at the very top.
+Once the program runs, it will first check whether the craft is under remote or local control. If control is remote, then it will confirm a link is established with KSC before allowing the program to continue. If control is local this step is skipped. If RemoteTech is not installed, this feature will be disabled.
 
 Next it will automatically detect all active RCS ports and perform a *very* short and low-thrust test burst of your RCS thruster ports to determine their ISP. **All ports in use should be using the same ISP**. It will then tell you on the HUD what it has found so you can confirm number, ISP and throttle setting.
 
@@ -28,11 +28,11 @@ At any time before the node executes you can alter the thrust limiter of your RC
 
 If the time to thrust is a ways off, you can time warp as much as you please - the program will detect this and make sure to drop you out of warp 10 seconds prior to node execution. *note it will only monitor time accelleration if a user-made maneuver node is present*.
 
-This program will **not** orient your craft. To do this, you must manually orient it or, if you are dealing with signal delay or future planned lack of connection, use the Remote Tech flight computer. 
+This program will **not** orient your craft. To do this, you must manually orient it or, if you are dealing with signal delay or future planned lack of connection, use the RemoteTech flight computer. 
 
 Once the thrust is complete the program will terminate and remove the maneuver node (but not any future ones you may have created). If you had SAS set to target the node during the maneuver, the program's removal of the node will cause KSP to disable your SAS, but the program will make sure to toggle it back on if this was the case.
 
-You can cancel the program at any time by pressing the Abort button. This will shutdown the kOS terminal and you will have to power it back on via the right-click menu on the part containing the kOS module.
+You can cancel the program at any time by pressing the Abort button. If you do not have RemoteTech enabled, the abort will be instant. If you do have RemoteTech enabled, the abort command will obey the current signal delay, unless control is local in which case the abort will be immediate. If you forget to disable the abort toggle before re-running the program the program will toggle it off.
 
 ##Usage (without Tweakable Everything)
 
@@ -44,7 +44,6 @@ This will load the thrust controller at 76% throttle.
 
 ##Future Additions
 
-- **Signal Delay Integration** - Loading the program will be delayed. Cancelling maneuvers will be delayed. Confirmation of the maneuver being completed and the script exiting will be delayed.
 - **Thruster kN Detection** - Will allow the option to not have to set the `kN` variable manually
 - **Multiple ISP Thrusters** - Allow for thrusters that don't all have the same ISP
 - **Multiple kN Thrusters** - Allow for thrusters that don't all have the same kN
@@ -55,7 +54,7 @@ This will load the thrust controller at 76% throttle.
 - The future node created by the script is there to avoid a run-time error that needs to be patched within kOS
 - The future node initially has a radial out value to push it off the current orbit so that it can be selected by the user to place a node before it
 - Regardless of whether you are using an actual kOS part or are using Module Manager to insert kOS functionality into another part (like a probe core) it **must not be a root part** of the craft. This is a known kOS issue
-- Tweakable Everything will only let you set the thrust as low as 5 before going straight to 0 (which RCSTC will reset to 1). The mod author has been notified
+- Tweakable Everything will only let you set the thrust as low as 5 before going straight to 0 (which RCSTC will reset to 1).
  
 ##Credits
 

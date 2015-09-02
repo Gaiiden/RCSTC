@@ -13,6 +13,7 @@ set thrusters to list().
 set nodeETA to -1.
 set nodeDV to -1.
 set lastHudMsg to 0.
+set thrustBeginTime to 99999999.  // prevent user enabling of RCS prior to automated enable crashing the program
 
 // code courtesy of Lilleman (kOS thread post #1364)
 set iNodeETA to (time:seconds + 126144000).
@@ -21,6 +22,9 @@ add tempNode.
 
 // make note of whether SAS is on
 if sas { set bSAS to true. }.
+
+// ensure no pre-mature abort
+abort off.
 
 // monitor time warp
 when warp > 0 and bNodeExist then
@@ -67,200 +71,218 @@ when nextnode:eta - (thrustLength/2) <= 0 then
   set thrustBeginTime to time.
 }.
 
-// trigger to cancel the thrust
-when abort then
+function ThrustManager
 {
-  print "Aborting maneuver" at (0,8).
+  clearscreen.
+  print "RCS Thrust Control Initializing...".
 
-  // clean up if needed
-  if rcs
+  // do we need to check for remote connection?
+  if not addons:rt:haslocalcontrol(ship)
   {
-    set ship:control:fore to 0.
-    set ship:control:neutralize to true.
-    rcs off.
-  }
-  remove tempNode.
-  shutdown.
-}.
-
-clearscreen.
-abort off.
-print "RCS Thrust Control Initializing...".
-print "checking for connection to Mission Control...".
-
-// Check if we have any control units on this craft
-list parts in partList.
-for part in partList
-{
-  for module in part:modules
-  {
-    if module = "modulespu"
+    print "checking for connection to Mission Control...".
+    if not addons:rt:haskscconnection(ship)
     {
-      if part:getmodule(module):getfield("spu") = "operational." { set bConnected to true. }.
+      print "No connection found!".
+      return false.
     }.
+    print "Connection confirmed".
   }.
-}.
 
-// if we didn't find a control unit, we can't run
-if not bConnected
-{
-  print "No connection!".
-  shutdown.
-}.
-print "Connection confirmed".
-print "Initializing thrusters...".
+  // blip the RCS jets to find out what environ we're in
+  print "Initializing thrusters...".
+  rcs on.
+  set ship:control:fore to 0.1.
+  wait 0.1.
+  set ship:control:fore to 0.
+  set ship:control:neutralize to true.
+  rcs off.
 
-// blip the RCS jets to find out what environ we're in
-rcs on.
-set ship:control:fore to 0.1.
-wait 0.1.
-set ship:control:fore to 0.
-set ship:control:neutralize to true.
-rcs off.
-
-// look for thrusters
-list parts in partList.
-for part in partList
-{
-  for module in part:modules
+  // look for thrusters
+  list parts in partList.
+  for part in partList
   {
-    if module = "modulercs"
+    for module in part:modules
     {
-      // if the rcs port is enabled, add it and log ISP
-      if part:getmodule(module):hasevent("disable rcs port")
+      if module = "modulercs"
       {
-        set isp to part:getmodule(module):getfield("rcs isp").
-        thrusters:add(part).
+        // if the rcs port is enabled, add it and log ISP
+        if part:getmodule(module):hasevent("disable rcs port")
+        {
+          set isp to part:getmodule(module):getfield("rcs isp").
+          thrusters:add(part).
+        }.
       }.
     }.
   }.
-}.
 
-if thrusters:length = 0
-{
-  print "No RCS thrusters found!".
-  shutdown.
-}.
-
-// get thruster throttle
-set thrust to thrusters[0]:getmodule("moduletweakablercs"):getfield("thrust limiter").
-
-hudtext("found " + thrusters:length + " active thruster(s) totaling " + kN * thrusters:length + "kN of thrust", 10, 2, 35, green, false).
-hudtext("with an ISP of " + isp + " set to " + thrust + "% throttle", 10, 2, 35, green, false).
-print "Initialization complete!".
-print " ".
-print "waiting for maneuver node...".
-print " ".
-print " ".
-
-// monitor for manuver nodes
-until bMainLoop = false
-{
-  if not bNodeExist
+  if thrusters:length = 0
   {
-    // check that a node exists for us to use
-    if nextnode:eta < tempNode:eta
-    {
-      set bNodeExist to true.
-      // snap future node back to normal so it doesn't make things look weird when modifying prior node
-      set tempNode:radialout to 0.
-    }.
-  }
-  else
+    print "No RCS thrusters found!".
+    return false.
+  }.
+
+  // get thruster throttle
+  set thrust to thrusters[0]:getmodule("moduletweakablercs"):getfield("thrust limiter").
+
+  hudtext("found " + thrusters:length + " active thruster(s) totaling " + kN * thrusters:length + "kN of thrust", 10, 2, 35, green, false).
+  hudtext("with an ISP of " + isp + " set to " + round(thrust * 100, 2) + "% throttle", 10, 2, 35, green, false).
+  print "Initialization complete!".
+  print " ".
+  print "waiting for maneuver node...".
+  print " ".
+  print " ".
+
+  // monitor for manuver nodes
+  until bMainLoop = false
   {
-    // if there is no burn executing
-    if not rcs
+    // does the user wish to cancel the maneuver?
+    if abort
     {
-			// check on node settings.
-			for part in thrusters
-			{
-				if part:getmodule("moduletweakablercs"):getfield("thrust limiter") <> thrust
-				{
-					set bDirtyNode to true.
-					set thrust to part:getmodule("moduletweakablercs"):getfield("thrust limiter").
+      print " ".
+      print " ".
 
-				        // don't allow a thrust setting of 0
-          				if thrust = 0 { set thrust to 1. }.
-					break.
-				}.
-			}.
-			if round(nextnode:deltav:mag,3) <> nodeDV
-			{
-				set nodeDV to round(nextnode:deltav:mag,3).
-				set bDirtyNode to true.
-
-				// ensure we have enough dV to carry out the maneuver fully, warn user if not
-				list resources in shipRes.
-				for res in shipRes { if res:name = "monopropellant" { set monoMass to res:amount. }. }.
-				set dV to isp*9.82*ln(ship:mass/(ship:mass-(monoMass*.004))).
-				if dV < nodeDV
-				{
-					// prevent HUD spam
-					if time - lastHudMsg > 10
-					{
-						hudtext("WARNING! Craft only contains " + round(dV,2) + "m/s dV!", 10, 2, 50, yellow, false).
-						set lastHudMsg to time.
-					}
-				}.
-			}.
-			if nextnode:eta <> nodeETA
-			{
-				set nodeETA to nextnode:eta.
-				set bDirtyNode to true.
-			}.
-
-			// update the time needed for the thrust?
-			if bDirtyNode
-			{
-				set bDirtyNode to false.
-
-				// make sure all thrusters are equal
-				for part in thrusters
-				{
-					part:getmodule("moduletweakablercs"):setfield("thrust limiter", thrust).
-				}.
-
-				set thrustLength to (ship:mass * 9.81 * isp / ((thrust/100)*(thrusters:length*kN))) * (1 - (e^((nextnode:deltav:mag*-1)/(9.81 * isp)))).
-				print "monitoring " + round(nextnode:deltav:mag,3) + "m/s dV manuever node...  " at(0, 6).
-				print round(thrustLength,2) + "s of thrust required at " + thrust + "% throttle  " at(0, 7).
-			}.
-
-			// wait for the maneuver and provide a countdown timer
-			lock timeRemaining to (time + nextnode:eta - (thrustLength/2)) - time.
-      if timeRemaining >= 0
-  		{
-        print "Time remaining until thrust: " + timeRemaining:Clock at (0,8).
+      // delay the abort if this is a remote connection
+      if not addons:rt:haslocalcontrol(ship)
+      {
+        print " ".
+        print "Transmitting abort command..." at (0,9).
+        if addons:rt:haskscconnection(ship)
+        {
+          wait addons:rt:kscdelay(ship).
+        }.
       }.
+      print "Aborting maneuver" at (0,10).
 
-      // did the user node get deleted?
-			if nextnode:eta = tempNode:eta
-			{
-				set bNodeExist to false.
-				set tempNode:radialout to 500.
-				print "                                               " at (0,6).
-				print "                                               " at (0,7).
-				print "                                               " at (0,8).
-				print "waiting for maneuver node..." at (0,6).
-			}.
+      // clean up if needed
+      if rcs
+      {
+        set ship:control:fore to 0.
+        set ship:control:neutralize to true.
+        rcs off.
+      }
+      remove tempNode.
+      return false.
+    }.
+
+    if not bNodeExist
+    {
+      // check that a node exists for us to use
+      if nextnode:eta < tempNode:eta
+      {
+        set bNodeExist to true.
+        // snap future node back to normal so it doesn't make things look weird when modifying prior node
+        set tempNode:radialout to 0.
+      }.
     }
     else
     {
-			if time - thrustBeginTime >= thrustLength
-			{
-				print "Thrust Complete!".
-				rcs off.
-				remove nextnode.
-				set ship:control:fore to 0.
-				set ship:control:neutralize to true.
-				remove tempNode.
-				print " ". // forces the program end message down a line
-				set bMainLoop to false.
-			}.
-		}.
+      // if there is no burn executing
+      if not rcs
+      {
+        // check on node settings.
+        for part in thrusters
+        {
+          if part:getmodule("moduletweakablercs"):getfield("thrust limiter") <> thrust
+          {
+            set bDirtyNode to true.
+            set thrust to part:getmodule("moduletweakablercs"):getfield("thrust limiter").
+
+            // don't allow a thrust setting of 0
+            if thrust = 0 { set thrust to 0.01. }.
+            break.
+          }.
+        }.
+        if round(nextnode:deltav:mag,3) <> nodeDV
+        {
+          set nodeDV to round(nextnode:deltav:mag,3).
+          set bDirtyNode to true.
+
+          // ensure we have enough dV to carry out the maneuver fully, warn user if not
+          list resources in shipRes.
+          for res in shipRes { if res:name = "monopropellant" { set monoMass to res:amount. }. }.
+          set dV to isp*9.82*ln(ship:mass/(ship:mass-(monoMass*.004))).
+          if dV < nodeDV
+          {
+            // prevent HUD spam
+            if time - lastHudMsg > 10
+            {
+              hudtext("WARNING! Craft only contains " + round(dV,2) + "m/s dV!", 10, 2, 50, yellow, false).
+              set lastHudMsg to time.
+            }
+          }.
+        }.
+        if nextnode:eta <> nodeETA
+        {
+          set nodeETA to nextnode:eta.
+          set bDirtyNode to true.
+        }.
+
+        // update the time needed for the thrust?
+        if bDirtyNode
+        {
+          set bDirtyNode to false.
+
+          // make sure all thrusters are equal
+          for part in thrusters
+          {
+            part:getmodule("moduletweakablercs"):setfield("thrust limiter", thrust).
+          }.
+
+          set thrustLength to (ship:mass * 9.81 * isp / ((thrust)*(thrusters:length*kN))) * (1 - (e^((nextnode:deltav:mag*-1)/(9.81 * isp)))).
+          print "monitoring " + round(nextnode:deltav:mag,3) + "m/s dV manuever node...  " at(0, 6).
+          print round(thrustLength,2) + "s of thrust required at " + round(thrust*100, 2) + "% throttle    " at(0, 7).
+        }.
+
+        // wait for the maneuver and provide a countdown timer
+        lock timeRemaining to (time + nextnode:eta - (thrustLength/2)) - time.
+        if timeRemaining >= 0
+        {
+          print "Time remaining until thrust: " + timeRemaining:Clock at (0,8).
+        }.
+
+        // did the user node get deleted?
+        if nextnode:eta = tempNode:eta
+        {
+          set bNodeExist to false.
+          set tempNode:radialout to 500.
+          print "                                               " at (0,6).
+          print "                                               " at (0,7).
+          print "                                               " at (0,8).
+          print "waiting for maneuver node..." at (0,6).
+        }.
+      }
+      else
+      {
+        if time - thrustBeginTime >= thrustLength
+        {
+          print "Thrust Complete!".
+          rcs off.
+          remove nextnode.
+          set ship:control:fore to 0.
+          set ship:control:neutralize to true.
+          remove tempNode.
+          print " ". // forces the program end message down a line
+          return true.
+        }
+        else if thrustBeginTime = 99999999
+        {
+            // prevent HUD spam
+            if time - lastHudMsg > 10
+            {
+              hudtext("WARNING! RCS prematurely enabled. Program paused.", 10, 2, 50, yellow, false).
+              set lastHudMsg to time.
+            }
+        }.
+      }.
+    }.
+
+    wait 0.001.
   }.
 
-  wait 0.001.
+  return true.
 }.
+
+ThrustManager().
 
 // if SAS was set to node, ending the program (deleting the node) will turn it off. Turn SAS back on?
 if not sas and bSAS { sas on. }.

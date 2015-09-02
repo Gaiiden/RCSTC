@@ -81,15 +81,18 @@ function ThrustManager
   print "RCS Thrust Control Initializing...".
 
   // do we need to check for remote connection?
-  if not addons:rt:haslocalcontrol(ship)
+  if addons:rt:available
   {
-    print "checking for connection to Mission Control...".
-    if not addons:rt:haskscconnection(ship)
+    if not addons:rt:haslocalcontrol(ship)
     {
-      print "No connection found!".
-      return false.
+      print "checking for connection to Mission Control...".
+      if not addons:rt:haskscconnection(ship)
+      {
+        print "No connection found!".
+        return false.
+      }.
+      print "Connection confirmed".
     }.
-    print "Connection confirmed".
   }.
 
   // blip the RCS jets to find out what environ we're in
@@ -146,13 +149,16 @@ function ThrustManager
       print " ".
 
       // delay the abort if this is a remote connection
-      if not addons:rt:haslocalcontrol(ship)
+      if addons:rt:available
       {
-        print " ".
-        print "Transmitting abort command..." at (0,9).
-        if addons:rt:haskscconnection(ship)
+        if not addons:rt:haslocalcontrol(ship)
         {
-          wait addons:rt:kscdelay(ship).
+          print " ".
+          print "Transmitting abort command..." at (0,9).
+          if addons:rt:haskscconnection(ship)
+          {
+            wait addons:rt:kscdelay(ship).
+          }.
         }.
       }.
       print "Aborting maneuver" at (0,10).

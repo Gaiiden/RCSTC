@@ -26,6 +26,13 @@ if sas { set bSAS to true. }.
 // ensure no pre-mature abort
 abort off.
 
+// we can't initialize under time warp because RCS thrusters will not fire to give us ISP readings
+if warp > 0 {
+  print "coming out of time warp...".
+  set warp to 0.
+  wait 5.
+}.
+
 // monitor time warp
 when warp > 0 and bNodeExist then
 {
@@ -112,7 +119,7 @@ function ThrustManager
         if part:getmodule(module):hasevent("disable rcs port")
         {
           set isp to part:getmodule(module):getfield("rcs isp").
-          thrusters:add(part).
+          thrusters:add(part:getmodule("moduletweakablercs")).
         }.
       }.
     }.
@@ -125,7 +132,7 @@ function ThrustManager
   }.
 
   // get thruster throttle
-  set thrust to thrusters[0]:getmodule("moduletweakablercs"):getfield("thrust limiter").
+  set thrust to thrusters[0]:getfield("thrust limiter").
 
   hudtext("found " + thrusters:length + " active thruster(s) totaling " + kN * thrusters:length + "kN of thrust", 10, 2, 35, green, false).
   hudtext("with an ISP of " + isp + " set to " + round(thrust * 100, 2) + "% throttle", 10, 2, 35, green, false).
@@ -188,10 +195,10 @@ function ThrustManager
         // check on node settings.
         for part in thrusters
         {
-          if part:getmodule("moduletweakablercs"):getfield("thrust limiter") <> thrust
+          if part:getfield("thrust limiter") <> thrust
           {
             set bDirtyNode to true.
-            set thrust to part:getmodule("moduletweakablercs"):getfield("thrust limiter").
+            set thrust to part:getfield("thrust limiter").
 
             // don't allow a thrust setting of 0
             if thrust = 0 { set thrust to 0.01. }.
@@ -231,7 +238,7 @@ function ThrustManager
           // make sure all thrusters are equal
           for part in thrusters
           {
-            part:getmodule("moduletweakablercs"):setfield("thrust limiter", thrust).
+            part:setfield("thrust limiter", thrust).
           }.
 
           set thrustLength to (ship:mass * 9.81 * isp / ((thrust)*(thrusters:length*kN))) * (1 - (e^((nextnode:deltav:mag*-1)/(9.81 * isp)))).

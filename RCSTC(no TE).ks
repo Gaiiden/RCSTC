@@ -30,6 +30,13 @@ if sas { set bSAS to true. }.
 // ensure no pre-mature abort
 abort off.
 
+// we can't initialize under time warp because RCS thrusters will not fire to give us ISP readings
+if warp > 0 {
+  print "coming out of time warp...".
+  set warp to 0.
+  wait 5.
+}.
+
 // monitor time warp
 when warp > 0 and bNodeExist then
 {
@@ -127,9 +134,6 @@ function ThrustManager
     print "No RCS thrusters found!".
     return false.
   }.
-
-  // get thruster throttle
-  set thrust to thrusters[0]:getmodule("moduletweakablercs"):getfield("thrust limiter").
 
   hudtext("found " + thrusters:length + " active thruster(s) totaling " + kN * thrusters:length + "kN of thrust", 10, 2, 35, green, false).
   hudtext("with an ISP of " + isp + " set to " + round(thrust * 100, 2) + "% throttle", 10, 2, 35, green, false).

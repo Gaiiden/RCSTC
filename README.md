@@ -42,6 +42,8 @@ If you do not have Tweakeable Everything installed to use the RCS thrust limiter
 
 This will load the thrust controller at 76% throttle.
 
+In both cases, if you are under warp running the program will drop you out of warp time before it initializes.
+
 ##Future Additions
 
 - **Thruster kN Detection** - Will allow the option to not have to set the `kN` variable manually

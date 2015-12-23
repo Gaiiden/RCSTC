@@ -1,3 +1,5 @@
+clearscreen.
+
 // currently the only hard-coded value. Change as needed
 set kN to 0.97.         // use RCS Build Aid to get accurate kN for your individual thrusters
 
@@ -10,9 +12,13 @@ set bSAS to false.
 set bDirtyNode to true.
 set bMainLoop to true.
 set thrusters to list().
+set thrusterPartsEnabled to list().
+set thrusterPartsDisabled to list().
 set nodeETA to -1.
 set nodeDV to -1.
 set lastHudMsg to 0.
+set statusLine to 10.
+set lineoffset to 0.
 set thrustBeginTime to 99999999.  // prevent user enabling of RCS prior to automated enable crashing the program
 
 // code courtesy of Lilleman (kOS thread post #1364)
@@ -31,6 +37,7 @@ if warp > 0 {
   print "coming out of time warp...".
   set warp to 0.
   wait 5.
+  set lineOffset to lineOffset + 1.
 }.
 
 // monitor time warp
@@ -72,7 +79,7 @@ when warp > 0 and bNodeExist then
 // trigger to begin burn
 when nextnode:eta - (thrustLength/2) <= 0 then
 {
-  print "Commencing thrust".
+  print "Commencing thrust" at (0,statusLine+lineOffset).
   rcs on.
   set ship:control:fore to 1.
   set thrustBeginTime to time.
@@ -80,7 +87,6 @@ when nextnode:eta - (thrustLength/2) <= 0 then
 
 function ThrustManager
 {
-  clearscreen.
   print "RCS Thrust Control Initializing...".
 
   // do we need to check for remote connection?
@@ -89,25 +95,19 @@ function ThrustManager
     if not addons:rt:haslocalcontrol(ship)
     {
       print "checking for connection to Mission Control...".
+      set lineOffset to lineOffset + 1.
       if not addons:rt:haskscconnection(ship)
       {
         print "No connection found!".
         return false.
       }.
       print "Connection confirmed".
+      set lineOffset to lineOffset + 1.
     }.
   }.
 
-  // blip the RCS jets to find out what environ we're in
-  print "Initializing thrusters...".
-  rcs on.
-  set ship:control:fore to 0.1.
-  wait 0.1.
-  set ship:control:fore to 0.
-  set ship:control:neutralize to true.
-  rcs off.
-
   // look for thrusters
+  print "Initializing thrusters...".
   list parts in partList.
   for part in partList
   {
@@ -119,7 +119,12 @@ function ThrustManager
         if part:getmodule(module):hasevent("disable rcs port")
         {
           set isp to part:getmodule(module):getfield("rcs isp").
-          thrusters:add(part:getmodule("moduletweakablercs")).
+          thrusters:add(part:getmodule("modulercs")).
+          thrusterPartsEnabled:add(part).
+        }
+        else
+        {
+          thrusterPartsDisabled:add(part).
         }.
       }.
     }.
@@ -135,36 +140,51 @@ function ThrustManager
   set thrust to thrusters[0]:getfield("thrust limiter").
 
   hudtext("found " + thrusters:length + " active thruster(s) totaling " + kN * thrusters:length + "kN of thrust", 10, 2, 35, green, false).
-  hudtext("with an ISP of " + isp + " set to " + round(thrust * 100, 2) + "% throttle", 10, 2, 35, green, false).
+  hudtext("with an ISP of " + isp + " set to " + round(thrust, 2) + "% throttle", 10, 2, 35, green, false).
+  set highlighterEnabled to highlight(thrusterPartsEnabled, green).
+  set highlighterDisabled to highlight(thrusterPartsDisabled, red).
+  set highlightOut to time:seconds.
   print "Initialization complete!".
   print " ".
   print "waiting for maneuver node...".
+  print " ".
+  print " ".
+  print " ".
+  print " ".
+  print " ".
+  print " ".
+  print " ".
+  print " ".
   print " ".
   print " ".
 
   // monitor for manuver nodes
   until bMainLoop = false
   {
+    // turn off the highlighting
+    if time:seconds - highlightOut > 10 and highlighterEnabled:enabled
+    {
+      set highlighterEnabled:enabled to false.
+      set highlighterDisabled:enabled to false.
+    }.
+
     // does the user wish to cancel the maneuver?
     if abort
     {
-      print " ".
-      print " ".
-
       // delay the abort if this is a remote connection
       if addons:rt:available
       {
         if not addons:rt:haslocalcontrol(ship)
         {
-          print " ".
-          print "Transmitting abort command..." at (0,9).
+          print "Transmitting abort command..." at (0,statusLine+lineOffset).
+          set lineOffset to lineOffset + 1.
           if addons:rt:haskscconnection(ship)
           {
             wait addons:rt:kscdelay(ship).
           }.
         }.
       }.
-      print "Aborting maneuver" at (0,10).
+      print "Aborting maneuver" at (0,statusLine+lineOffset).
 
       // clean up if needed
       if rcs
@@ -201,7 +221,7 @@ function ThrustManager
             set thrust to part:getfield("thrust limiter").
 
             // don't allow a thrust setting of 0
-            if thrust = 0 { set thrust to 0.01. }.
+            if thrust = 0 { set thrust to 1. }.
             break.
           }.
         }.
@@ -241,16 +261,16 @@ function ThrustManager
             part:setfield("thrust limiter", thrust).
           }.
 
-          set thrustLength to (ship:mass * 9.81 * isp / ((thrust)*(thrusters:length*kN))) * (1 - (e^((nextnode:deltav:mag*-1)/(9.81 * isp)))).
-          print "monitoring " + round(nextnode:deltav:mag,3) + "m/s dV manuever node...  " at(0, 6).
-          print round(thrustLength,2) + "s of thrust required at " + round(thrust*100, 2) + "% throttle    " at(0, 7).
+          set thrustLength to (ship:mass * 9.81 * isp / ((thrust/100)*(thrusters:length*kN))) * (1 - (e^((nextnode:deltav:mag*-1)/(9.81 * isp)))).
+          print "monitoring " + round(nextnode:deltav:mag,3) + "m/s dV manuever node...  " at(0, 6+lineOffset).
+          print round(thrustLength,2) + "s of thrust required at " + thrust + "% throttle    " at(0, 7+lineOffset).
         }.
 
         // wait for the maneuver and provide a countdown timer
         lock timeRemaining to (time + nextnode:eta - (thrustLength/2)) - time.
         if timeRemaining >= 0
         {
-          print "Time remaining until thrust: " + timeRemaining:Clock at (0,8).
+          print "Time remaining until thrust: " + timeRemaining:Clock at (0,8+lineOffset).
         }.
 
         // did the user node get deleted?
@@ -258,17 +278,16 @@ function ThrustManager
         {
           set bNodeExist to false.
           set tempNode:radialout to 500.
-          print "                                               " at (0,6).
-          print "                                               " at (0,7).
-          print "                                               " at (0,8).
-          print "waiting for maneuver node..." at (0,6).
+          print "                                               " at (0,6+lineOffset).
+          print "                                               " at (0,7+lineOffset).
+          print "                                               " at (0,8+lineOffset).
         }.
       }
       else
       {
         if time - thrustBeginTime >= thrustLength
         {
-          print "Thrust Complete!".
+          print "Thrust Complete!" at (0,statusLine+lineOffset+1).
           rcs off.
           remove nextnode.
           set ship:control:fore to 0.
